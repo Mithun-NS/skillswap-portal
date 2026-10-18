@@ -12,54 +12,42 @@
   }
   
   body {
-    background-color: #0b0f19;
+    background-color: #0b0f17;
     color: #f1f5f9;
   }
 }
 
-/* Custom scrollbars */
+/* Custom quiet scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #0b0f17;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #1e293b;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #334155;
 }
 
-/* Glassmorphism utility effects */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Collaborative workspace surfaces */
+.surface-card {
+  background-color: #141b26;
+  border: 1px solid #1e293b;
 }
 
-.glass-card {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.75) 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+.surface-card-subtle {
+  background-color: rgba(20, 27, 38, 0.7);
+  border: 1px solid rgba(30, 41, 59, 0.8);
 }
 
-.glass-card-hover {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+.surface-hover {
+  transition: all 0.2s ease-in-out;
 }
-.glass-card-hover:hover {
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px -10px rgba(99, 102, 241, 0.15);
+.surface-hover:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-1px);
 }
-
-.gradient-text {
-  background: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #38bdf8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
