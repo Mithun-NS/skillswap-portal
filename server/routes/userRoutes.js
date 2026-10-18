@@ -42,6 +42,14 @@ router.post('/', async (req, res) => {
       userData.id = `usr_${Date.now()}`;
     }
 
+    if (Array.isArray(userData.availableSlots) && typeof userData.weeklySessionCap === 'number') {
+      if (userData.availableSlots.length > userData.weeklySessionCap) {
+        return res.status(400).json({
+          error: `Selected slots (${userData.availableSlots.length}) exceed weekly capacity limit (${userData.weeklySessionCap}).`
+        });
+      }
+    }
+
     if (isMongoConnected) {
       const updated = await User.findOneAndUpdate(
         { $or: [{ id: userData.id }, { email: userData.email }] },
