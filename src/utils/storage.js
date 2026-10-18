@@ -197,29 +197,7 @@ export const DEFAULT_CURRENT_USER = {
   joinedAt: '2024-04-01'
 };
 
-export const INITIAL_BOOKINGS = [
-  {
-    id: 'bkg_01',
-    mentorId: 'usr_01',
-    mentorName: 'Sarah Chen',
-    mentorEmail: 'sarah.chen@company.com',
-    mentorRole: 'Staff Frontend Architect',
-    menteeId: 'usr_me',
-    menteeName: 'Alex Morgan',
-    menteeEmail: 'alex.morgan@company.com',
-    slotId: 'slot_1_1',
-    day: 'Tuesday',
-    date: '2026-10-21',
-    time: '04:00 PM - 04:30 PM',
-    topic: 'Architecture / System Design',
-    notes: 'Walkthrough of component hierarchy and caching strategy for our upcoming client dashboard.',
-    prUrl: 'https://github.com/company/dashboard/pull/184',
-    meetUrl: 'https://meet.google.com/swap-sarah-alex',
-    status: 'confirmed', // 'confirmed' | 'completed' | 'cancelled'
-    createdAt: '2026-10-16T10:00:00Z',
-    feedbackNote: ''
-  }
-];
+export const INITIAL_BOOKINGS = [];
 
 // Helper to safely get from localStorage
 function safeGet(key, fallback) {

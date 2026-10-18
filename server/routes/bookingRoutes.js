@@ -20,6 +20,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+function getNextDateForDay(dayName) {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const targetIndex = days.findIndex((d) => d.toLowerCase() === (dayName || '').toLowerCase());
+  const now = new Date();
+  if (targetIndex === -1) {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const result = new Date(now);
+  const currentIndex = result.getDay();
+  let diff = targetIndex - currentIndex;
+  if (diff < 0) diff += 7;
+  result.setDate(result.getDate() + diff);
+  const y = result.getFullYear();
+  const m = String(result.getMonth() + 1).padStart(2, '0');
+  const d = String(result.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // POST create booking
 router.post('/', async (req, res) => {
   try {
@@ -29,7 +50,9 @@ router.post('/', async (req, res) => {
     }
     data.status = data.status || 'confirmed';
     data.createdAt = data.createdAt || new Date().toISOString();
-    data.date = data.date || new Date().toISOString().split('T')[0];
+    data.date = data.date && data.date !== new Date().toISOString().split('T')[0]
+      ? data.date
+      : getNextDateForDay(data.day);
     data.meetUrl = data.meetingUrl || data.meetUrl || 'https://meet.google.com/new';
     data.menteeEmail = data.menteeEmail || 'colleague@intimetec.com';
     data.mentorEmail = data.mentorEmail || '';
@@ -197,6 +220,29 @@ router.put('/:id/complete', async (req, res) => {
 
     writeLocalDB(db);
     return res.json({ success: true, booking: b });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE booking
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isMongoConnected) {
+      const isObjectId = mongoose.Types.ObjectId.isValid(id);
+      await Booking.deleteOne({
+        $or: [
+          { id },
+          ...(isObjectId ? [{ _id: id }] : [])
+        ]
+      });
+      return res.json({ success: true, message: `Booking ${id} deleted` });
+    }
+    const db = readLocalDB();
+    db.bookings = (db.bookings || []).filter((b) => b.id !== id && b._id !== id);
+    writeLocalDB(db);
+    return res.json({ success: true, message: `Booking ${id} deleted` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

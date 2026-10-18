@@ -39,12 +39,22 @@ export default function Navbar() {
 
   // Sync bookings count when storage changes
   useEffect(() => {
+    const clean = (val) => (val || '').toString().trim().toLowerCase().replace(/\s+/g, ' ');
     const updateStats = () => {
       const activeUser = user || storage.getCurrentUser();
       const bookings = storage.getBookings();
-      const active = bookings.filter(
-        (b) => activeUser && (b.menteeId === activeUser.id || b.mentorId === activeUser.id) && b.status === 'confirmed'
-      );
+      const active = bookings.filter((b) => {
+        if (!activeUser || b.status !== 'confirmed') return false;
+        const normId = clean(activeUser.id);
+        const normEmail = clean(activeUser.email);
+        const normName = clean(activeUser.name);
+
+        const matchesId = normId && (clean(b.menteeId) === normId || clean(b.mentorId) === normId);
+        const matchesEmail = normEmail && (clean(b.menteeEmail) === normEmail || clean(b.mentorEmail) === normEmail);
+        const matchesName = normName && (clean(b.menteeName) === normName || clean(b.mentorName) === normName);
+
+        return matchesId || matchesEmail || matchesName;
+      });
       setUpcomingCount(active.length);
     };
 
