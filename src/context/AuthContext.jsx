@@ -79,6 +79,24 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const updateProfile = async (updates) => {
+    try {
+      const merged = { ...user, ...updates };
+      const saved = await api.saveUser(merged);
+      const updatedUser = saved || merged;
+      setUser(updatedUser);
+      localStorage.setItem('skillswap_last_account', JSON.stringify({
+        name: updatedUser.name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      }));
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      toast.error(err.message || 'Failed to update profile');
+      return { success: false, error: err.message };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('skillswap_token');
     setToken(null);
@@ -95,6 +113,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     login,
     register,
+    updateProfile,
     logout,
   };
 
