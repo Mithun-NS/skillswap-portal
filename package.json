@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "node server/server.js",
-    "dev:all": "concurrently -n \"frontend,backend\" -c \"cyan,magenta\" \"vite\" \"node server/server.js\"",
+    "server": "node --watch server/server.js",
+    "dev:all": "concurrently -n \"frontend,backend\" -c \"cyan,magenta\" \"vite\" \"node --watch server/server.js\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

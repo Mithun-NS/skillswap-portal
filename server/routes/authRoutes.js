@@ -25,6 +25,14 @@ router.post('/register', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Invalid email address.' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
 
     // Check if user already exists
     if (isMongoConnected) {
@@ -122,7 +130,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Invalid email. No account found with this email address.' });
     }
 
     // If user has a hashed password, compare with bcrypt. If sample user without password, allow test login.
@@ -132,7 +140,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password.' });
+      return res.status(401).json({ error: 'Invalid password.' });
     }
 
     const token = generateToken(user);
