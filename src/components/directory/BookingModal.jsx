@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { getNextDateForDay, formatDateLabel } from '../../utils/calendar';
 
 const WORKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -78,7 +79,7 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
         menteeEmail: currentUser?.email || 'colleague@intimetec.com',
         slotId: selectedSlot.id,
         day: selectedSlot.day,
-        date: new Date().toISOString().split('T')[0],
+        date: getNextDateForDay(selectedSlot.day),
         time: selectedSlot.time,
         topic: topic.trim(),
         status: 'confirmed',
@@ -242,6 +243,8 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                         const daySlots = allSlots.filter((s) => s.day === day);
                         const openCount = daySlots.filter((s) => !s.isBooked).length;
                         const isActive = activeDay === day;
+                        const dayDate = getNextDateForDay(day);
+                        const dayLabel = formatDateLabel(dayDate).replace(/, \d{4}$/, ''); // e.g. "Oct 21"
 
                         return (
                           <button
@@ -251,15 +254,18 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                               setActiveDay(day);
                               setSelectedSlot(null);
                             }}
-                            className={`py-2 px-1 rounded-lg text-xs font-semibold transition-all flex flex-col items-center justify-center gap-1 ${
+                            className={`py-2 px-1 rounded-lg text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 ${
                               isActive
                                 ? 'bg-[#f97316] text-white shadow-md shadow-orange-500/20'
                                 : 'text-slate-400 hover:text-white hover:bg-[#141b26]'
                             }`}
                           >
-                            <span className="text-[11px] uppercase tracking-wider">{day.slice(0, 3)}</span>
+                            <span className="text-[11px] uppercase font-bold tracking-wider">{day.slice(0, 3)}</span>
+                            <span className={`text-[10px] ${isActive ? 'text-white/90 font-medium' : 'text-slate-400'}`}>
+                              {dayLabel}
+                            </span>
                             <span
-                              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                              className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold mt-0.5 ${
                                 isActive
                                   ? 'bg-white/20 text-white'
                                   : openCount > 0
