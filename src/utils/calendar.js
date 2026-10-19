@@ -219,3 +219,125 @@ export function downloadBookingIcs(booking) {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Calculates start and end Date objects for a tech talk
+ */
+export function getTalkDates(talk) {
+  const { startHours, startMinutes, endHours, endMinutes } = parseTimeRange(talk.time || '04:00 PM - 04:45 PM');
+  
+  let baseDate = new Date();
+  if (talk.date && /^\d{4}-\d{2}-\d{2}$/.test(talk.date)) {
+    const [y, m, d] = talk.date.split('-').map(Number);
+    baseDate = new Date(y, m - 1, d);
+  }
+
+  const startDate = new Date(baseDate);
+  startDate.setHours(startHours, startMinutes, 0, 0);
+
+  const endDate = new Date(baseDate);
+  endDate.setHours(endHours, endMinutes, 0, 0);
+
+  return { startDate, endDate };
+}
+
+/**
+ * Generates an RFC 5545 .ics content string for a Tech Talk
+ */
+export function generateTalkIcsContent(talk) {
+  const { startDate, endDate } = getTalkDates(talk);
+  const now = new Date();
+
+  const title = `TechTalk: ${talk.title}`;
+  const speaker = `${talk.speakerName} (${talk.speakerRole || 'Speaker'})`;
+  const meetUrl = talk.meetingUrl || 'https://meet.google.com/new';
+
+  const descriptionLines = [
+    `SkillSwap Internal Tech Talk / Workshop`,
+    `Topic: ${talk.title}`,
+    `Speaker: ${speaker}`,
+    `Department: ${talk.department || 'Engineering'}`,
+    `Level: ${talk.level || 'Intermediate'}`,
+    `Duration: ${talk.duration || '45 mins'}`,
+    talk.abstract ? `Abstract: ${talk.abstract}` : '',
+    talk.slidesUrl ? `Slides & Resources: ${talk.slidesUrl}` : '',
+    `Virtual Meeting Link: ${meetUrl}`,
+  ].filter(Boolean);
+
+  const description = descriptionLines.join('\\n');
+
+  const icsLines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SkillSwap//Tech Talks Hub//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${talk.id || Date.now()}@skillswap.portal`,
+    `DTSTAMP:${formatIcsDateTime(now)}`,
+    `DTSTART:${formatIcsDateTime(startDate)}`,
+    `DTEND:${formatIcsDateTime(endDate)}`,
+    `SUMMARY:${title.replace(/[,;]/g, ' ')}`,
+    `DESCRIPTION:${description}`,
+    `LOCATION:${meetUrl}`,
+    'STATUS:CONFIRMED',
+    'TRANSP:OPAQUE',
+    'BEGIN:VALARM',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Reminder: SkillSwap Tech Talk starting in 15 minutes',
+    'TRIGGER:-PT15M',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+
+  return icsLines.join('\r\n');
+}
+
+/**
+ * Downloads .ics invite for a Tech Talk
+ */
+export function downloadTalkIcs(talk) {
+  const icsData = generateTalkIcsContent(talk);
+  const blob = new Blob([icsData], { type: 'text/calendar;charset=utf-8;' });
+  const filename = `techtalk-${(talk.title || 'talk').toLowerCase().replace(/[^a-z0-9]/g, '-')}.ics`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Returns a 1-click Google Calendar web link for a Tech Talk
+ */
+export function getGoogleCalendarUrlForTalk(talk) {
+  const { startDate, endDate } = getTalkDates(talk);
+  const formatGCal = (date) =>
+    date.getUTCFullYear() +
+    pad(date.getUTCMonth() + 1) +
+    pad(date.getUTCDate()) +
+    'T' +
+    pad(date.getUTCHours()) +
+    pad(date.getUTCMinutes()) +
+    pad(date.getUTCSeconds()) +
+    'Z';
+
+  const title = `TechTalk: ${talk.title}`;
+  const meetUrl = talk.meetingUrl || 'https://meet.google.com/new';
+  const details = [
+    `SkillSwap Internal Tech Talk: ${talk.title}`,
+    `Speaker: ${talk.speakerName} (${talk.speakerRole || 'Speaker'})`,
+    `Level: ${talk.level || 'Intermediate'}`,
+    talk.abstract || '',
+    talk.slidesUrl ? `Slides: ${talk.slidesUrl}` : '',
+    `Join Meeting: ${meetUrl}`
+  ].filter(Boolean).join('\n\n');
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatGCal(startDate)}/${formatGCal(endDate)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(meetUrl)}`;
+}
+

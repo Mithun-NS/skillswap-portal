@@ -191,4 +191,15 @@ export const api = {
     }
     return localResult;
   },
+
+  async deleteTalk(talkId) {
+    storage.deleteTalk(talkId);
+    try {
+      return await fetchJSON(`${API_BASE}/talks/${talkId}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      return { success: true };
+    }
+  },
 };
