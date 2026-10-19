@@ -124,59 +124,7 @@ export const INITIAL_USERS = [
   }
 ];
 
-export const INITIAL_TALKS = [
-  {
-    id: 'talk_01',
-    title: 'Microservices vs Modular Monolith: Lessons from our Billing Migration',
-    abstract: 'A deep-dive into how our billing service split 2 years ago, the hidden operational costs of network hops, and why we adopted a modular monolith architecture with strict domain boundaries.',
-    speakerName: 'Marcus Vance',
-    speakerEmail: 'marcus.vance@company.com',
-    speakerRole: 'Senior Backend Engineer',
-    department: 'Billing & Payments',
-    date: '2026-10-24',
-    time: '04:00 PM - 04:45 PM',
-    duration: '45 mins (30m talk + 15m Q&A)',
-    level: 'Intermediate',
-    meetingUrl: 'https://meet.google.com/xyz-tech-talk',
-    slidesUrl: 'https://slides.internal.company.com/billing-modular-monolith',
-    attendees: ['sarah.chen@company.com', 'priya.sharma@company.com', 'david.rodriguez@company.com', 'alex.morgan@company.com'],
-    createdAt: '2026-10-10'
-  },
-  {
-    id: 'talk_02',
-    title: 'Zero to Production with Docker & Kubernetes for App Developers',
-    abstract: 'Demystifying container fundamentals, multi-stage Docker builds, local minikube debugging, and writing your first clean Helm chart without losing your sanity.',
-    speakerName: 'Priya Sharma',
-    speakerEmail: 'priya.sharma@company.com',
-    speakerRole: 'Lead DevOps & Cloud Engineer',
-    department: 'Platform & SRE',
-    date: '2026-10-29',
-    time: '03:30 PM - 04:30 PM',
-    duration: '60 mins (Hands-on Workshop)',
-    level: 'Beginner',
-    meetingUrl: 'https://meet.google.com/k8s-workshop-demo',
-    slidesUrl: 'https://slides.internal.company.com/k8s-101',
-    attendees: ['david.rodriguez@company.com', 'elena.rostova@company.com', 'alex.morgan@company.com'],
-    createdAt: '2026-10-12'
-  },
-  {
-    id: 'talk_03',
-    title: 'Mastering React 19: Server Actions, Suspense & Compiler Secrets',
-    abstract: 'An architectural exploration of React 19 changes, optimistic UI updates, replacing boilerplate effect hooks with action patterns, and what the React Compiler does to your bundle.',
-    speakerName: 'Sarah Chen',
-    speakerEmail: 'sarah.chen@company.com',
-    speakerRole: 'Staff Frontend Architect',
-    department: 'Frontend Infra',
-    date: '2026-11-05',
-    time: '04:30 PM - 05:15 PM',
-    duration: '45 mins',
-    level: 'Advanced',
-    meetingUrl: 'https://meet.google.com/react-19-deepdive',
-    slidesUrl: 'https://slides.internal.company.com/react-19-migration',
-    attendees: ['david.rodriguez@company.com', 'marcus.vance@company.com', 'alex.morgan@company.com'],
-    createdAt: '2026-10-15'
-  }
-];
+export const INITIAL_TALKS = [];
 
 export const DEFAULT_CURRENT_USER = {
   id: 'usr_me',
@@ -398,6 +346,13 @@ export const storage = {
 
     this.saveTalks(talks);
     return !isAttending; // returns true if now attending, false if removed
+  },
+
+  deleteTalk(talkId) {
+    const talks = this.getTalks();
+    const filtered = talks.filter((t) => t.id !== talkId);
+    this.saveTalks(filtered);
+    return true;
   },
 
   // --- BACKUP & RESTORE / TEAM SHARING ---

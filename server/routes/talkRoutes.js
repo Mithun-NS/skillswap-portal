@@ -93,4 +93,28 @@ router.post('/:id/rsvp', async (req, res) => {
   }
 });
 
+// DELETE talk
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isMongoConnected) {
+      const deleted = await Talk.findOneAndDelete({ id });
+      if (!deleted) return res.status(404).json({ error: 'Talk not found' });
+      return res.json({ success: true, message: 'Talk deleted successfully' });
+    }
+
+    const db = readLocalDB();
+    db.talks = db.talks || [];
+    const prevLen = db.talks.length;
+    db.talks = db.talks.filter((t) => t.id !== id);
+    if (db.talks.length === prevLen) {
+      return res.status(404).json({ error: 'Talk not found' });
+    }
+    writeLocalDB(db);
+    return res.json({ success: true, message: 'Talk deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
