@@ -202,4 +202,53 @@ export const api = {
       return { success: true };
     }
   },
+
+  // NOTIFICATIONS
+  async getNotifications(email) {
+    try {
+      const url = email ? `${API_BASE}/notifications?email=${encodeURIComponent(email)}` : `${API_BASE}/notifications`;
+      const data = await fetchJSON(url);
+      if (Array.isArray(data)) {
+        storage.saveNotifications(data);
+        return data;
+      }
+      return storage.getNotifications(email);
+    } catch {
+      return storage.getNotifications(email);
+    }
+  },
+
+  async markNotificationAsRead(id) {
+    storage.markNotificationRead(id);
+    try {
+      return await fetchJSON(`${API_BASE}/notifications/${id}/read`, {
+        method: 'PUT',
+      });
+    } catch {
+      return { success: true };
+    }
+  },
+
+  async markAllNotificationsAsRead(email) {
+    storage.markAllNotificationsRead(email);
+    try {
+      return await fetchJSON(`${API_BASE}/notifications/mark-all-read`, {
+        method: 'PUT',
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      return { success: true };
+    }
+  },
+
+  async deleteNotification(id) {
+    storage.deleteNotification(id);
+    try {
+      return await fetchJSON(`${API_BASE}/notifications/${id}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      return { success: true };
+    }
+  },
 };

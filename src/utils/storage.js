@@ -7,6 +7,7 @@ const KEYS = {
   USERS: 'skillswap_users',
   BOOKINGS: 'skillswap_bookings',
   TALKS: 'skillswap_talks',
+  NOTIFICATIONS: 'skillswap_notifications',
   CURRENT_USER: 'skillswap_current_user',
 };
 
@@ -352,6 +353,57 @@ export const storage = {
     const talks = this.getTalks();
     const filtered = talks.filter((t) => t.id !== talkId);
     this.saveTalks(filtered);
+    return true;
+  },
+
+  // --- NOTIFICATIONS ---
+  getNotifications(email) {
+    const list = safeGet(KEYS.NOTIFICATIONS, []);
+    if (!email) return list;
+    return list.filter((n) => !n.userEmail || n.userEmail.toLowerCase() === email.toLowerCase());
+  },
+
+  saveNotifications(list) {
+    safeSet(KEYS.NOTIFICATIONS, list);
+  },
+
+  addNotification(notif) {
+    const list = this.getNotifications();
+    const item = {
+      id: notif.id || `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      read: false,
+      createdAt: new Date().toISOString(),
+      ...notif,
+    };
+    list.unshift(item);
+    this.saveNotifications(list);
+    return item;
+  },
+
+  markNotificationRead(id) {
+    const list = this.getNotifications();
+    const item = list.find((n) => n.id === id || n._id === id);
+    if (item) {
+      item.read = true;
+      this.saveNotifications(list);
+    }
+    return item;
+  },
+
+  markAllNotificationsRead(email) {
+    const list = this.getNotifications();
+    list.forEach((n) => {
+      if (!email || !n.userEmail || n.userEmail.toLowerCase() === email.toLowerCase()) {
+        n.read = true;
+      }
+    });
+    this.saveNotifications(list);
+  },
+
+  deleteNotification(id) {
+    const list = this.getNotifications();
+    const filtered = list.filter((n) => n.id !== id && n._id !== id);
+    this.saveNotifications(filtered);
     return true;
   },
 
