@@ -16,6 +16,7 @@ import {
 import { storage } from '../../utils/storage';
 import { useAuth } from '../../context/AuthContext';
 import TeamDataModal from './TeamDataModal';
+import NotificationBell from '../notifications/NotificationBell';
 
 export default function Navbar() {
   const location = useLocation();
@@ -154,6 +155,9 @@ export default function Navbar() {
 
             {/* Right: Actions, Team Sync & Auth User / Logout */}
             <div className="flex items-center gap-2.5">
+              {/* Notifications Center */}
+              {isAuthenticated && <NotificationBell />}
+
               {/* Team Data Backup Button (Only when authenticated) */}
               {isAuthenticated && (
                 <button

@@ -6,6 +6,7 @@ import userRoutes from './routes/userRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import talkRoutes from './routes/talkRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { User } from './models/User.js';
 import { Talk } from './models/Talk.js';
 import { Booking } from './models/Booking.js';
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/talks', talkRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Database Health & Status Endpoint
 app.get('/api/health', (req, res) => {

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Booking } from '../models/Booking.js';
 import { User } from '../models/User.js';
 import { isMongoConnected, readLocalDB, writeLocalDB } from '../config/db.js';
+import { createNotification } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -92,6 +93,21 @@ router.post('/', async (req, res) => {
         console.warn('[Booking] Could not flag slot in Mongo:', flagErr.message);
       }
 
+      // Notify mentor of new booking
+      try {
+        await createNotification({
+          userId: data.mentorId,
+          userEmail: data.mentorEmail,
+          type: 'booking_new',
+          title: 'New Session Booked! 📅',
+          message: `${data.userName || 'A colleague'} booked a ${data.skill || 'Skill'} session with you on ${data.date || data.day} at ${data.time}.`,
+          link: '/my-bookings',
+          metadata: { bookingId: data.id, requester: data.userName, skill: data.skill }
+        });
+      } catch (notifErr) {
+        console.warn('[Notification] Failed to create booking notification:', notifErr.message);
+      }
+
       return res.status(201).json(newBooking);
     }
 
@@ -117,6 +133,20 @@ router.post('/', async (req, res) => {
     }
 
     writeLocalDB(db);
+
+    // Notify mentor of new booking (local fallback)
+    try {
+      await createNotification({
+        userId: data.mentorId,
+        userEmail: data.mentorEmail,
+        type: 'booking_new',
+        title: 'New Session Booked! 📅',
+        message: `${data.userName || 'A colleague'} booked a ${data.skill || 'Skill'} session with you on ${data.date || data.day} at ${data.time}.`,
+        link: '/my-bookings',
+        metadata: { bookingId: data.id, requester: data.userName, skill: data.skill }
+      });
+    } catch (_) {}
+
     return res.status(201).json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -164,6 +194,32 @@ router.put('/:id/cancel', async (req, res) => {
         }
       }
 
+      // Notify parties
+      try {
+        if (booking.mentorEmail) {
+          await createNotification({
+            userId: booking.mentorId,
+            userEmail: booking.mentorEmail,
+            type: 'booking_cancelled',
+            title: 'Session Cancelled ⚠️',
+            message: `The session for ${booking.skill || 'Skill'} on ${booking.date || booking.day} at ${booking.time} was cancelled.${reason ? ` Reason: ${reason}` : ''}`,
+            link: '/my-bookings',
+            metadata: { bookingId: booking.id, reason }
+          });
+        }
+        if (booking.userEmail) {
+          await createNotification({
+            userId: booking.userId,
+            userEmail: booking.userEmail,
+            type: 'booking_cancelled',
+            title: 'Session Cancelled ⚠️',
+            message: `The session for ${booking.skill || 'Skill'} on ${booking.date || booking.day} at ${booking.time} was cancelled.${reason ? ` Reason: ${reason}` : ''}`,
+            link: '/my-bookings',
+            metadata: { bookingId: booking.id, reason }
+          });
+        }
+      } catch (_) {}
+
       return res.json({ success: true, booking });
     }
 
@@ -185,6 +241,31 @@ router.put('/:id/cancel', async (req, res) => {
     }
 
     writeLocalDB(db);
+
+    // Local notification fallback
+    try {
+      if (b.mentorEmail) {
+        await createNotification({
+          userId: b.mentorId,
+          userEmail: b.mentorEmail,
+          type: 'booking_cancelled',
+          title: 'Session Cancelled ⚠️',
+          message: `The session for ${b.skill || 'Skill'} on ${b.date || b.day} at ${b.time} was cancelled.${reason ? ` Reason: ${reason}` : ''}`,
+          link: '/my-bookings'
+        });
+      }
+      if (b.userEmail) {
+        await createNotification({
+          userId: b.userId,
+          userEmail: b.userEmail,
+          type: 'booking_cancelled',
+          title: 'Session Cancelled ⚠️',
+          message: `The session for ${b.skill || 'Skill'} on ${b.date || b.day} at ${b.time} was cancelled.${reason ? ` Reason: ${reason}` : ''}`,
+          link: '/my-bookings'
+        });
+      }
+    } catch (_) {}
+
     return res.json({ success: true, booking: b });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -206,6 +287,21 @@ router.put('/:id/complete', async (req, res) => {
       booking.completedAt = new Date().toISOString();
       await booking.save();
 
+      // Notify mentee
+      try {
+        if (booking.userEmail) {
+          await createNotification({
+            userId: booking.userId,
+            userEmail: booking.userEmail,
+            type: 'booking_completed',
+            title: 'Session Completed! 🎉',
+            message: `Your session with ${booking.mentorName || 'your mentor'} for ${booking.skill || 'Skill'} is complete. Check out the feedback!`,
+            link: '/my-bookings',
+            metadata: { bookingId: booking.id, feedbackNote }
+          });
+        }
+      } catch (_) {}
+
       return res.json({ success: true, booking });
     }
 
@@ -219,6 +315,20 @@ router.put('/:id/complete', async (req, res) => {
     b.completedAt = new Date().toISOString();
 
     writeLocalDB(db);
+
+    try {
+      if (b.userEmail) {
+        await createNotification({
+          userId: b.userId,
+          userEmail: b.userEmail,
+          type: 'booking_completed',
+          title: 'Session Completed! 🎉',
+          message: `Your session with ${b.mentorName || 'your mentor'} for ${b.skill || 'Skill'} is complete. Check out the feedback!`,
+          link: '/my-bookings'
+        });
+      }
+    } catch (_) {}
+
     return res.json({ success: true, booking: b });
   } catch (err) {
     res.status(500).json({ error: err.message });

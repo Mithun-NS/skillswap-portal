@@ -1,6 +1,7 @@
 import express from 'express';
 import { Talk } from '../models/Talk.js';
 import { isMongoConnected, readLocalDB, writeLocalDB } from '../config/db.js';
+import { createNotification } from './notificationRoutes.js';
 
 const router = express.Router();
 
@@ -67,6 +68,33 @@ router.post('/:id/rsvp', async (req, res) => {
         isAttending = true;
       }
       await talk.save();
+
+      // If user registered, notify speaker and user
+      if (isAttending) {
+        try {
+          // Notify speaker if not self
+          if (talk.speakerEmail && talk.speakerEmail.toLowerCase() !== userEmail.toLowerCase()) {
+            await createNotification({
+              userEmail: talk.speakerEmail,
+              type: 'talk_rsvp',
+              title: 'New RSVP for your Talk! 🎟️',
+              message: `${userEmail} registered to attend "${talk.title}".`,
+              link: '/talks',
+              metadata: { talkId: talk.id, attendeeEmail: userEmail }
+            });
+          }
+          // Notify attendee
+          await createNotification({
+            userEmail: userEmail,
+            type: 'talk_reminder',
+            title: 'RSVP Confirmed! 🎟️',
+            message: `You're registered for "${talk.title}" on ${talk.date} at ${talk.time}.`,
+            link: '/talks',
+            metadata: { talkId: talk.id }
+          });
+        } catch (_) {}
+      }
+
       return res.json({ isAttending, attendees: talk.attendees });
     }
 
@@ -87,6 +115,28 @@ router.post('/:id/rsvp', async (req, res) => {
     }
 
     writeLocalDB(db);
+
+    if (isAttending) {
+      try {
+        if (talk.speakerEmail && talk.speakerEmail.toLowerCase() !== userEmail.toLowerCase()) {
+          await createNotification({
+            userEmail: talk.speakerEmail,
+            type: 'talk_rsvp',
+            title: 'New RSVP for your Talk! 🎟️',
+            message: `${userEmail} registered to attend "${talk.title}".`,
+            link: '/talks'
+          });
+        }
+        await createNotification({
+          userEmail: userEmail,
+          type: 'talk_reminder',
+          title: 'RSVP Confirmed! 🎟️',
+          message: `You're registered for "${talk.title}" on ${talk.date} at ${talk.time}.`,
+          link: '/talks'
+        });
+      } catch (_) {}
+    }
+
     return res.json({ isAttending, attendees: talk.attendees });
   } catch (err) {
     res.status(500).json({ error: err.message });
