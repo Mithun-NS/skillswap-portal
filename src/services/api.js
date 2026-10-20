@@ -251,4 +251,80 @@ export const api = {
       return { success: true };
     }
   },
+
+  // WISHLIST / REQUEST A MENTOR
+  async getWishlist() {
+    try {
+      const data = await fetchJSON(`${API_BASE}/wishlist`);
+      if (Array.isArray(data)) {
+        storage.saveWishlist(data);
+        return data;
+      }
+      return storage.getWishlist();
+    } catch {
+      return storage.getWishlist();
+    }
+  },
+
+  async addWishlistItem(item) {
+    const local = storage.addWishlistItem(item);
+    try {
+      return await fetchJSON(`${API_BASE}/wishlist`, {
+        method: 'POST',
+        body: JSON.stringify(local),
+      });
+    } catch {
+      return local;
+    }
+  },
+
+  async toggleWishlistUpvote(id, userEmail) {
+    const local = storage.toggleWishlistUpvote(id, userEmail);
+    try {
+      const res = await fetchJSON(`${API_BASE}/wishlist/${id}/upvote`, {
+        method: 'POST',
+        body: JSON.stringify({ userEmail }),
+      });
+      return res;
+    } catch {
+      return local;
+    }
+  },
+
+  async volunteerWishlist(id, mentorName, mentorEmail) {
+    const local = storage.volunteerWishlistItem(id, mentorName, mentorEmail);
+    try {
+      const res = await fetchJSON(`${API_BASE}/wishlist/${id}/volunteer`, {
+        method: 'POST',
+        body: JSON.stringify({ mentorName, mentorEmail }),
+      });
+      return res;
+    } catch {
+      return { success: true, item: local };
+    }
+  },
+
+  async updateWishlistItem(id, updateData) {
+    const local = storage.updateWishlistItem(id, updateData);
+    try {
+      const res = await fetchJSON(`${API_BASE}/wishlist/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+      });
+      return res.item || local;
+    } catch {
+      return local;
+    }
+  },
+
+  async deleteWishlistItem(id) {
+    storage.deleteWishlistItem(id);
+    try {
+      return await fetchJSON(`${API_BASE}/wishlist/${id}`, {
+        method: 'DELETE',
+      });
+    } catch {
+      return { success: true };
+    }
+  },
 };

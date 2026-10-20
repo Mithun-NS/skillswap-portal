@@ -8,6 +8,7 @@ const KEYS = {
   BOOKINGS: 'skillswap_bookings',
   TALKS: 'skillswap_talks',
   NOTIFICATIONS: 'skillswap_notifications',
+  WISHLIST: 'skillswap_wishlist',
   CURRENT_USER: 'skillswap_current_user',
 };
 
@@ -147,6 +148,8 @@ export const DEFAULT_CURRENT_USER = {
 };
 
 export const INITIAL_BOOKINGS = [];
+
+export const INITIAL_WISHLIST = [];
 
 // Helper to safely get from localStorage
 function safeGet(key, fallback) {
@@ -404,6 +407,87 @@ export const storage = {
     const list = this.getNotifications();
     const filtered = list.filter((n) => n.id !== id && n._id !== id);
     this.saveNotifications(filtered);
+    return true;
+  },
+
+  // --- WISHLIST / REQUEST A MENTOR ---
+  getWishlist() {
+    return safeGet(KEYS.WISHLIST, []);
+  },
+
+  saveWishlist(list) {
+    safeSet(KEYS.WISHLIST, list);
+  },
+
+  addWishlistItem(item) {
+    const list = this.getWishlist();
+    const newItem = {
+      id: item.id || `wish_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      upvotes: 1,
+      upvotedBy: [item.requesterEmail?.toLowerCase()],
+      status: 'open',
+      createdAt: new Date().toISOString(),
+      ...item,
+    };
+    list.unshift(newItem);
+    this.saveWishlist(list);
+    return newItem;
+  },
+
+  toggleWishlistUpvote(id, userEmail) {
+    const list = this.getWishlist();
+    const wish = list.find((w) => w.id === id || w._id === id);
+    if (!wish) return null;
+
+    wish.upvotedBy = wish.upvotedBy || [];
+    const cleanEmail = (userEmail || '').toLowerCase();
+    const idx = wish.upvotedBy.indexOf(cleanEmail);
+    let upvoted = false;
+
+    if (idx >= 0) {
+      wish.upvotedBy.splice(idx, 1);
+      wish.upvotes = Math.max(1, (wish.upvotes || 1) - 1);
+      upvoted = false;
+    } else {
+      wish.upvotedBy.push(cleanEmail);
+      wish.upvotes = (wish.upvotes || 0) + 1;
+      upvoted = true;
+    }
+
+    this.saveWishlist(list);
+    return { upvoted, upvotes: wish.upvotes, upvotedBy: wish.upvotedBy };
+  },
+
+  volunteerWishlistItem(id, mentorName, mentorEmail) {
+    const list = this.getWishlist();
+    const wish = list.find((w) => w.id === id || w._id === id);
+    if (!wish) return null;
+
+    wish.status = 'matched';
+    wish.matchedMentorName = mentorName;
+    wish.matchedMentorEmail = mentorEmail;
+    wish.matchedAt = new Date().toISOString();
+
+    this.saveWishlist(list);
+    return wish;
+  },
+
+  updateWishlistItem(id, updateData) {
+    const list = this.getWishlist();
+    const wish = list.find((w) => w.id === id || w._id === id);
+    if (!wish) return null;
+
+    if (updateData.skill) wish.skill = updateData.skill.trim();
+    if (updateData.description !== undefined) wish.description = updateData.description.trim();
+
+    this.saveWishlist(list);
+    return wish;
+  },
+
+  deleteWishlistItem(id) {
+    const list = this.getWishlist();
+    const filtered = list.filter((w) => w.id !== id && w._id !== id);
+    this.saveWishlist(filtered);
     return true;
   },
 

@@ -24,6 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import ColleagueCard from '../components/directory/ColleagueCard';
 import BookingModal from '../components/directory/BookingModal';
+import SkillWishlistSection from '../components/wishlist/SkillWishlistSection';
 
 const DEPARTMENTS = [
   'All Departments',
@@ -234,7 +235,10 @@ export default function DirectoryPage() {
         </div>
       </div>
 
-      {/* 2. Interactive Search & Multi-Filter Control Hub */}
+      {/* 2. Skill Wishlist & Mentor Request Board */}
+      <SkillWishlistSection />
+
+      {/* 3. Interactive Search & Multi-Filter Control Hub */}
       <div className="rounded-2xl bg-[#141b26] border border-[#1e293b] p-5 sm:p-6 shadow-xl space-y-4">
         {/* Row 1: Search Bar & Toggle */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
