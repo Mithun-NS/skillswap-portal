@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Calendar, 
@@ -17,9 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { getNextDateForDay, formatDateLabel } from '../../utils/calendar';
-
-const WORKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+import { getRollingWorkdays, isTimeSlotPassed, formatDateLabel } from '../../utils/calendar';
 
 const QUICK_TOPICS = [
   'Architecture & Design Review',
@@ -39,27 +37,51 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
 
   if (!colleague) return null;
 
+  // Generate the next 5-7 rolling business days starting chronologically from Today/next work day
+  const upcomingWorkdays = useMemo(() => getRollingWorkdays(5), []);
+
   // All slots configured by the colleague
   const allSlots = colleague.availableSlots || [];
-  const openSlots = allSlots.filter((s) => !s.isBooked);
-  const totalOpenCount = openSlots.length;
 
-  // Workdays that have at least one slot configured
-  const daysWithSlots = WORKDAYS.filter((day) => 
-    allSlots.some((s) => s.day === day)
-  );
+  // Find first upcoming day that has valid unbooked, non-passed slots
+  const firstAvailableDayIndex = useMemo(() => {
+    const idx = upcomingWorkdays.findIndex((d) =>
+      allSlots.some((s) => s.day === d.day && !s.isBooked && !isTimeSlotPassed(d.date, s.time))
+    );
+    return idx >= 0 ? idx : 0;
+  }, [upcomingWorkdays, allSlots]);
 
-  const [activeDay, setActiveDay] = useState(daysWithSlots[0] || WORKDAYS[0]);
+  const [activeDateIndex, setActiveDateIndex] = useState(firstAvailableDayIndex);
 
-  // All slots on active day (both open and booked)
-  const activeDaySlots = allSlots.filter((s) => s.day === activeDay);
+  const activeDateObj = upcomingWorkdays[activeDateIndex] || upcomingWorkdays[0];
+  const activeDaySlots = allSlots.filter((s) => s.day === activeDateObj?.day);
+
+  // Total open upcoming slots across the rolling schedule
+  const totalOpenUpcomingCount = useMemo(() => {
+    let count = 0;
+    upcomingWorkdays.forEach((d) => {
+      allSlots.forEach((s) => {
+        if (s.day === d.day && !s.isBooked && !isTimeSlotPassed(d.date, s.time)) {
+          count++;
+        }
+      });
+    });
+    return count;
+  }, [upcomingWorkdays, allSlots]);
 
   const handleConfirmBooking = async (e) => {
     e.preventDefault();
-    if (!selectedSlot || selectedSlot.isBooked) {
-      setError('Please choose an available (unbooked) time slot.');
+    if (!selectedSlot) {
+      setError('Please choose an available time slot.');
       return;
     }
+
+    const slotPassed = isTimeSlotPassed(activeDateObj.date, selectedSlot.time);
+    if (selectedSlot.isBooked || slotPassed) {
+      setError(slotPassed ? 'This time slot has already passed for this date. Please choose a future time.' : 'This time slot is already booked.');
+      return;
+    }
+
     if (!topic.trim()) {
       setError('Please provide a brief topic or goal for this 1:1 session.');
       return;
@@ -78,8 +100,8 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
         menteeName: currentUser?.name || 'Current User',
         menteeEmail: currentUser?.email || 'colleague@intimetec.com',
         slotId: selectedSlot.id,
-        day: selectedSlot.day,
-        date: getNextDateForDay(selectedSlot.day),
+        day: activeDateObj.day,
+        date: activeDateObj.date, // Exact calendar date e.g. "2026-10-26"
         time: selectedSlot.time,
         topic: topic.trim(),
         status: 'confirmed',
@@ -91,7 +113,7 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
       selectedSlot.isBooked = true; // Immediately update local object
       setBookingResult(result || bookingPayload);
       if (onBookingSuccess) {
-        onBookingSuccess(colleague.id, selectedSlot.id, selectedSlot.day, selectedSlot.time);
+        onBookingSuccess(colleague.id, selectedSlot.id, activeDateObj.day, selectedSlot.time);
       }
     } catch (err) {
       setError(err.message || 'Failed to confirm booking. Please try again.');
@@ -168,7 +190,9 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                   <span className="text-slate-400 font-medium">Scheduled Time</span>
                   <span className="font-bold text-orange-400 flex items-center gap-1.5 text-xs sm:text-sm">
                     <Clock className="w-4 h-4 text-orange-400" />
-                    <span>{bookingResult.day}, {bookingResult.time}</span>
+                    <span>
+                      {bookingResult.date ? `${formatDateLabel(bookingResult.date)} (${bookingResult.day})` : bookingResult.day}, {bookingResult.time}
+                    </span>
                   </span>
                 </div>
 
@@ -224,7 +248,7 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                     <span>1. Select an Available Time Slot</span>
                   </label>
                   <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    {totalOpenCount} slot{totalOpenCount === 1 ? '' : 's'} open this week
+                    {totalOpenUpcomingCount} slot{totalOpenUpcomingCount === 1 ? '' : 's'} available
                   </span>
                 </div>
 
@@ -237,21 +261,19 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {/* Workday navigation tabs */}
+                    {/* Rolling Workday navigation tabs */}
                     <div className="grid grid-cols-5 gap-1.5 p-1 rounded-xl bg-[#0e141d] border border-[#1e293b]">
-                      {WORKDAYS.map((day) => {
-                        const daySlots = allSlots.filter((s) => s.day === day);
-                        const openCount = daySlots.filter((s) => !s.isBooked).length;
-                        const isActive = activeDay === day;
-                        const dayDate = getNextDateForDay(day);
-                        const dayLabel = formatDateLabel(dayDate).replace(/, \d{4}$/, ''); // e.g. "Oct 21"
+                      {upcomingWorkdays.map((dateObj, idx) => {
+                        const daySlots = allSlots.filter((s) => s.day === dateObj.day);
+                        const openCount = daySlots.filter((s) => !s.isBooked && !isTimeSlotPassed(dateObj.date, s.time)).length;
+                        const isActive = activeDateIndex === idx;
 
                         return (
                           <button
-                            key={day}
+                            key={dateObj.date}
                             type="button"
                             onClick={() => {
-                              setActiveDay(day);
+                              setActiveDateIndex(idx);
                               setSelectedSlot(null);
                             }}
                             className={`py-2 px-1 rounded-lg text-xs font-semibold transition-all flex flex-col items-center justify-center gap-0.5 ${
@@ -260,9 +282,9 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                                 : 'text-slate-400 hover:text-white hover:bg-[#141b26]'
                             }`}
                           >
-                            <span className="text-[11px] uppercase font-bold tracking-wider">{day.slice(0, 3)}</span>
+                            <span className="text-[11px] uppercase font-bold tracking-wider">{dateObj.shortDay}</span>
                             <span className={`text-[10px] ${isActive ? 'text-white/90 font-medium' : 'text-slate-400'}`}>
-                              {dayLabel}
+                              {dateObj.formattedLabel}
                             </span>
                             <span
                               className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold mt-0.5 ${
@@ -280,30 +302,32 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                       })}
                     </div>
 
-                    {/* Slot List for Active Day - Single column wide rows so time never breaks */}
+                    {/* Slot List for Active Day */}
                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                       {activeDaySlots.length === 0 ? (
                         <p className="text-center text-xs text-slate-400 italic py-6 bg-[#0e141d] rounded-xl border border-[#1e293b]">
-                          No time slots scheduled on {activeDay}. Please choose another workday above.
+                          No time slots scheduled on {activeDateObj?.day} ({activeDateObj?.formattedLabel}). Please choose another date above.
                         </p>
                       ) : (
                         activeDaySlots.map((slot) => {
                           const isSelected = selectedSlot?.id === slot.id || (selectedSlot?.day === slot.day && selectedSlot?.time === slot.time);
                           const isBooked = !!slot.isBooked;
+                          const isPassed = isTimeSlotPassed(activeDateObj.date, slot.time);
+                          const isDisabled = isBooked || isPassed;
 
                           return (
                             <button
                               key={slot.id || `${slot.day}_${slot.time}`}
                               type="button"
-                              disabled={isBooked}
+                              disabled={isDisabled}
                               onClick={() => {
-                                if (!isBooked) {
+                                if (!isDisabled) {
                                   setSelectedSlot(slot);
                                   setError('');
                                 }
                               }}
                               className={`w-full p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between group ${
-                                isBooked
+                                isDisabled
                                   ? 'bg-[#0e141d]/50 border-[#1e293b]/70 text-slate-500 cursor-not-allowed opacity-60'
                                   : isSelected
                                   ? 'bg-gradient-to-r from-orange-500/20 to-amber-500/10 border-orange-500 text-white ring-1 ring-orange-500/40 shadow-sm active:scale-[0.99]'
@@ -314,7 +338,7 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                               <div className="flex items-center gap-3 min-w-0">
                                 <div
                                   className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
-                                    isBooked
+                                    isDisabled
                                       ? 'bg-slate-800/40 border-slate-700/50 text-slate-600'
                                       : isSelected
                                       ? 'bg-orange-500 border-orange-400 text-white shadow-sm'
@@ -324,7 +348,7 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                                   <Clock className="w-3.5 h-3.5" />
                                 </div>
                                 <span className={`whitespace-nowrap font-bold text-xs ${
-                                  isBooked ? 'line-through text-slate-500' : isSelected ? 'text-white' : 'text-slate-200'
+                                  isDisabled ? 'line-through text-slate-500' : isSelected ? 'text-white' : 'text-slate-200'
                                 }`}>
                                   {slot.time}
                                 </span>
@@ -338,6 +362,10 @@ export default function BookingModal({ colleague, onClose, onBookingSuccess }) {
                                 {isBooked ? (
                                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/25 whitespace-nowrap">
                                     Already Booked
+                                  </span>
+                                ) : isPassed ? (
+                                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-800 text-slate-400 border border-slate-700/60 whitespace-nowrap">
+                                    Time Passed
                                   </span>
                                 ) : isSelected ? (
                                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-orange-500 text-white flex items-center gap-1 shadow-sm whitespace-nowrap">

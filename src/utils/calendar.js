@@ -22,11 +22,12 @@ function formatIcsDateTime(date) {
 }
 
 /**
- * Parses time string like "10:00 AM - 10:30 AM" or "04:00 PM - 04:30 PM"
+ * Parses time string like "10:00 AM - 10:30 AM" or "04:00 PM – 04:30 PM"
  * and returns { startHours, startMinutes, endHours, endMinutes }
  */
-function parseTimeRange(timeStr) {
-  const parts = timeStr.split('-').map((s) => s.trim());
+export function parseTimeRange(timeStr) {
+  if (!timeStr) return { startHours: 10, startMinutes: 0, endHours: 10, endMinutes: 30 };
+  const parts = timeStr.split(/[-–—]/).map((s) => s.trim());
   if (parts.length < 2) {
     return { startHours: 10, startMinutes: 0, endHours: 10, endMinutes: 30 };
   }
@@ -56,9 +57,76 @@ function parseTimeRange(timeStr) {
 }
 
 /**
+ * Checks if a specific time slot on a given date (YYYY-MM-DD) has already passed
+ */
+export function isTimeSlotPassed(dateStr, timeStr, now = new Date()) {
+  if (!dateStr || !timeStr) return false;
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const { startHours, startMinutes } = parseTimeRange(timeStr);
+    const slotDate = new Date(y, m - 1, d, startHours, startMinutes, 0, 0);
+    return slotDate.getTime() <= now.getTime();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Generates rolling upcoming workdays (Mon-Fri) in chronological order
+ * starting from Today (or the next available workday if today's hours are past).
+ */
+export function getRollingWorkdays(count = 5, fromDate = new Date()) {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const workdays = [];
+  const current = new Date(fromDate);
+
+  // Consider workday hours past if after 17:30 (5:30 PM)
+  const currentHour = current.getHours();
+  const currentMinute = current.getMinutes();
+  const isPastTodayWorkHours = currentHour > 17 || (currentHour === 17 && currentMinute >= 30);
+
+  let checkDate = new Date(current);
+  if (isPastTodayWorkHours) {
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
+
+  while (workdays.length < count) {
+    const dayOfWeek = checkDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      const y = checkDate.getFullYear();
+      const m = String(checkDate.getMonth() + 1).padStart(2, '0');
+      const d = String(checkDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const dayName = days[dayOfWeek];
+
+      const isToday =
+        checkDate.getDate() === current.getDate() &&
+        checkDate.getMonth() === current.getMonth() &&
+        checkDate.getFullYear() === current.getFullYear();
+
+      const shortMonth = checkDate.toLocaleDateString('en-US', { month: 'short' });
+      const dayNum = checkDate.getDate();
+
+      workdays.push({
+        date: dateStr,
+        day: dayName,
+        shortDay: dayName.slice(0, 3),
+        dayNum,
+        shortMonth,
+        isToday,
+        formattedLabel: isToday ? `Today (${dayName.slice(0, 3)}, ${shortMonth} ${dayNum})` : `${dayName.slice(0, 3)}, ${shortMonth} ${dayNum}`,
+      });
+    }
+    checkDate.setDate(checkDate.getDate() + 1);
+  }
+
+  return workdays;
+}
+
+/**
  * Calculates the exact upcoming YYYY-MM-DD date for a given weekday (e.g. Wednesday, Thursday)
  */
-export function getNextDateForDay(dayName, fromDate = new Date()) {
+export function getNextDateForDay(dayName, fromDate = new Date(), timeStr = null) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const targetIndex = days.findIndex((d) => d.toLowerCase() === (dayName || '').toLowerCase());
   if (targetIndex === -1) {
@@ -71,10 +139,19 @@ export function getNextDateForDay(dayName, fromDate = new Date()) {
   const result = new Date(fromDate);
   const currentIndex = result.getDay();
   let diff = targetIndex - currentIndex;
+
   // If target day has already passed this week, advance to next week
   if (diff < 0) {
     diff += 7;
+  } else if (diff === 0 && timeStr) {
+    // If target day is today, check if this time slot has already passed
+    const { startHours, startMinutes } = parseTimeRange(timeStr);
+    const slotTimeToday = new Date(result.getFullYear(), result.getMonth(), result.getDate(), startHours, startMinutes);
+    if (slotTimeToday.getTime() <= fromDate.getTime()) {
+      diff += 7;
+    }
   }
+
   result.setDate(result.getDate() + diff);
 
   const y = result.getFullYear();

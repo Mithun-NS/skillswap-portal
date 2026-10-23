@@ -28,6 +28,7 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getRollingWorkdays, isTimeSlotPassed } from '../utils/calendar';
 
 const DEPARTMENTS = [
   {
@@ -117,7 +118,8 @@ export default function ProfilePage() {
   const [skillsToLearn, setSkillsToLearn] = useState([]);
   const [weeklySessionCap, setWeeklySessionCap] = useState(2);
   const [availableSlots, setAvailableSlots] = useState([]);
-  const [selectedDay, setSelectedDay] = useState('Monday');
+  const rollingWorkdays = useMemo(() => getRollingWorkdays(5), []);
+  const [selectedDay, setSelectedDay] = useState(() => rollingWorkdays[0]?.day || 'Monday');
 
   // Custom Dropdown State
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
@@ -1070,21 +1072,24 @@ export default function ProfilePage() {
           <div className="space-y-4">
             {/* Workday Navigation Tabs */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none border-b border-[#1e293b]/80">
-              {WORKDAYS.map((day) => {
-                const daySlotCount = availableSlots.filter((s) => s.day === day).length;
-                const isSelected = selectedDay === day;
+              {rollingWorkdays.map((dateObj) => {
+                const daySlotCount = availableSlots.filter((s) => s.day === dateObj.day).length;
+                const isSelected = selectedDay === dateObj.day;
                 return (
                   <button
-                    key={day}
+                    key={dateObj.date}
                     type="button"
-                    onClick={() => setSelectedDay(day)}
+                    onClick={() => setSelectedDay(dateObj.day)}
                     className={`px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
                       isSelected
                         ? 'bg-[#f97316] text-white shadow-md shadow-orange-500/20'
                         : 'bg-[#0e141d] text-slate-400 hover:text-white hover:bg-[#1a2332] border border-[#1e293b]'
                     }`}
                   >
-                    <span>{day}</span>
+                    <span>{dateObj.day}</span>
+                    <span className={`text-[10px] ${isSelected ? 'text-white/80 font-medium' : 'text-slate-500'}`}>
+                      ({dateObj.formattedLabel})
+                    </span>
                     <span
                       className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                         isSelected
@@ -1163,6 +1168,9 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
               {STANDARD_TIME_SLOTS.map((timeSlot) => {
                 const isActive = isSlotActive(selectedDay, timeSlot);
+                const selectedDateObj = rollingWorkdays.find((d) => d.day === selectedDay);
+                const isPassed = selectedDateObj ? isTimeSlotPassed(selectedDateObj.date, timeSlot) : false;
+
                 return (
                   <button
                     key={timeSlot}
@@ -1170,7 +1178,9 @@ export default function ProfilePage() {
                     onClick={() => handleToggleSlot(selectedDay, timeSlot)}
                     title={
                       isActive
-                        ? 'Click to remove this slot'
+                        ? isPassed
+                          ? `This time slot has already passed for ${selectedDateObj?.formattedLabel}. It will automatically be available for booking next week on ${selectedDay}. Click to remove.`
+                          : 'Click to remove this slot'
                         : availableSlots.length >= weeklySessionCap
                         ? `Weekly capacity limit reached (${weeklySessionCap} session${weeklySessionCap === 1 ? '' : 's'}). Increase capacity above to add more.`
                         : 'Click to select this slot'
@@ -1193,7 +1203,14 @@ export default function ProfilePage() {
                       >
                         <Clock className="w-3.5 h-3.5" />
                       </div>
-                      <span className="text-xs font-medium tracking-tight truncate">{timeSlot}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-medium tracking-tight truncate">{timeSlot}</span>
+                        {isActive && isPassed && (
+                          <span className="text-[9px] font-semibold text-amber-400/90 tracking-tight">
+                            Passed today · Active next week
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div
