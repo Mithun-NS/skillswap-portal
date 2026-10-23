@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-function getNextDateForDay(dayName) {
+function getNextDateForDay(dayName, timeStr) {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const targetIndex = days.findIndex((d) => d.toLowerCase() === (dayName || '').toLowerCase());
   const now = new Date();
@@ -34,7 +34,27 @@ function getNextDateForDay(dayName) {
   const result = new Date(now);
   const currentIndex = result.getDay();
   let diff = targetIndex - currentIndex;
-  if (diff < 0) diff += 7;
+
+  if (diff === 0 && timeStr) {
+    try {
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const ampm = match[3].toUpperCase();
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        const slotEnd = new Date(now);
+        slotEnd.setHours(hours, minutes, 0, 0);
+        if (slotEnd <= now) {
+          diff = 7; // advance to next week
+        }
+      }
+    } catch (e) {}
+  } else if (diff < 0) {
+    diff += 7;
+  }
+
   result.setDate(result.getDate() + diff);
   const y = result.getFullYear();
   const m = String(result.getMonth() + 1).padStart(2, '0');
@@ -51,9 +71,9 @@ router.post('/', async (req, res) => {
     }
     data.status = data.status || 'confirmed';
     data.createdAt = data.createdAt || new Date().toISOString();
-    data.date = data.date && data.date !== new Date().toISOString().split('T')[0]
+    data.date = (data.date && /^\d{4}-\d{2}-\d{2}$/.test(data.date))
       ? data.date
-      : getNextDateForDay(data.day);
+      : getNextDateForDay(data.day, data.time);
     data.meetUrl = data.meetingUrl || data.meetUrl || 'https://meet.google.com/new';
     data.menteeEmail = data.menteeEmail || 'colleague@intimetec.com';
     data.mentorEmail = data.mentorEmail || '';
